@@ -91,32 +91,6 @@ public class DeflateFileCompressorTests
 	}
 
 	[Test]
-	public async Task Ensure_DecompressFile_Without_Target_Stream_Works()
-	{
-		// arrange
-		IFileCompressor fileCompressor = new DeflateFileCompressor();
-		string stringToCompress = "test test test test test test test test test test";
-		byte[] stringAsBytes = System.Text.Encoding.UTF8.GetBytes(stringToCompress);
-		await using MemoryStream initialMemoryStream = new MemoryStream();
-		initialMemoryStream.Write(stringAsBytes, 0, stringAsBytes.Length);
-		initialMemoryStream.Position = 0;
-		await using MemoryStream compressedStream = new MemoryStream();
-		await using (DeflateStream deflateStream = new(compressedStream, CompressionLevel.Optimal, true))
-		{
-			await initialMemoryStream.CopyToAsync(deflateStream);
-		}
-		compressedStream.Position = 0;
-
-		// act
-		byte[] decompressedBytes = await fileCompressor.DecompressFile(compressedStream);
-
-		// assert
-		decompressedBytes.Should().NotBeNull();
-		decompressedBytes.Length.Should().Be(stringAsBytes.Length);
-		System.Text.Encoding.UTF8.GetString(decompressedBytes).Should().Be(stringToCompress);
-	}
-
-	[Test]
 	public async Task Ensure_DecompressFile_With_Target_Stream_Works()
 	{
 		// arrange

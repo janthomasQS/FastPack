@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -14,15 +15,18 @@ public class DeflateFileCompressor : IFileCompressor
 		await stream.CopyToAsync(targetStream);
 	}
 
-	public async Task<byte[]> DecompressFile(Stream sourceStream)
+	public async Task DecompressFile(Stream sourceStream, int chunkSize, Func<ReadOnlyMemory<byte>, ValueTask> callback)
 	{
 		await using Stream stream = new DeflateStream(sourceStream, CompressionMode.Decompress);
-		MemoryStream memoryStream = new((int)sourceStream.Length);
-		await stream.CopyToAsync(memoryStream);
+		using var memoryOwner = MemoryPool<byte>.Shared.Rent(chunkSize);
+		var slicedMemory = memoryOwner.Memory[..chunkSize];
 
-		byte[] bytes = memoryStream.GetBuffer();
-		Array.Resize(ref bytes, (int)memoryStream.Length); // this is benchmarked in MemoryStreamGetBytesComparison
-		return bytes;
+		while (true)
+		{
+			var readCount = await stream.ReadAsync(slicedMemory);
+			if(readCount is 0) break;
+			await callback(slicedMemory[..readCount]);
+		}
 	}
 
 	public async Task<Stream> CompressFile(string inputDirectory, string inputFile, ushort compressionLevel, Stream targetStream = null)
